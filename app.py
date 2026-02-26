@@ -16,7 +16,8 @@ app = Flask(__name__)
 # Configuration
 # ---------------------------------------------------------------------------
 app.config["DATABASE"] = os.environ.get("DATABASE", "kvr_database.db")
-API_KEY = os.environ.get("API_KEY", "")
+# Trim surrounding whitespace to avoid accidental trailing/leading spaces in .env
+API_KEY = os.environ.get("API_KEY", "").strip()
 
 # ---------------------------------------------------------------------------
 # Database helpers (sqlite3 – no ORM needed, easy to extend)
@@ -56,12 +57,15 @@ def init_db(conn=None):
 
 def user_to_dict(row):
     """Convert a sqlite3.Row to a plain dict (skipping internal 'id')."""
-    return {
-        "username": row["username"],
-        "pin": row["pin"],
-        "kvrcoin": row["kvrcoin"],
-        "chess_points": row["chess_points"],
-    }
+    # Include all columns returned by the query except the internal `id`.
+    # This makes the API forward-compatible with new columns added to the
+    # `users` table (e.g. via `scripts/add_field.py`).
+    result = {}
+    for key in row.keys():
+        if key == "id":
+            continue
+        result[key] = row[key]
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +78,17 @@ def require_api_key(f):
             abort(500, description="API_KEY is not configured on the server.")
         provided = request.headers.get("X-API-Key", "")
         if provided != API_KEY:
+            # Temporary debug logging to help diagnose mismatched keys.
+            try:
+                app.logger.info("Auth failure: app.API_KEY=%r, provided=%r", API_KEY, provided)
+            except Exception:
+                print(f"Auth failure: app.API_KEY={API_KEY!r}, provided={provided!r}")
             abort(401, description="Invalid or missing API key.")
+        else:
+            try:
+                app.logger.debug("Auth success: provided API key=%r", provided)
+            except Exception:
+                pass
         return f(*args, **kwargs)
     return decorated
 
@@ -197,6 +211,14 @@ def delete_user(username):
     finally:
         conn.close()
     return jsonify({"message": f"User '{username}' deleted."})
+
+
+# Temporary debug endpoint: returns the server's configured API_KEY and the
+# headers received with the request. Useful for local troubleshooting only.
+@app.route("/debug-headers", methods=["GET", "POST"]) 
+def debug_headers():
+    hdrs = {k: v for k, v in request.headers.items()}
+    return jsonify({"app_api_key": API_KEY, "request_headers": hdrs})
 
 
 # ---------------------------------------------------------------------------
