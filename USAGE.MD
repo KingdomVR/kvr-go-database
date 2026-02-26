@@ -106,6 +106,29 @@ What the script does:
 
 Notes about API compatibility
 - The server's response serializer now returns all columns (except the internal `id`) from the `users` table. That means newly added fields will automatically appear in `GET` responses for existing users.
+--------------------------------------------------
+Leaderboard
+--------------------------------------------------
+
+The server includes a leaderboard endpoint for `chess_points`.
+
+- Get chess leaderboard — GET /leaderboard/chess
+
+  Query parameters:
+  - `limit` (int, optional): maximum rows to return
+  - `order` (`asc`|`desc`, default `desc`): sort order by `chess_points`
+
+  Examples:
+
+  ```cmd
+  # Top 10 players (descending)
+  curl "http://127.0.0.1:5000/leaderboard/chess?limit=10" -H "X-API-Key: supersecret"
+
+  # Lowest scores first (ascending)
+  curl "http://127.0.0.1:5000/leaderboard/chess?order=asc" -H "X-API-Key: supersecret"
+  ```
+
+  Response: a JSON array of objects with `username` and `chess_points`.
 
 --------------------------------------------------
 Testing
@@ -120,7 +143,7 @@ python -m pytest -q
 --------------------------------------------------
 Cleanup and security notes
 --------------------------------------------------
-- The repo contains a temporary debug route (`/debug-headers`) and some auth logging added for troubleshooting. Remove them before deploying or share the code publicly.
+- The temporary diagnostic route and auth logging used during troubleshooting have been removed. The codebase no longer exposes `/debug-headers`.
 - Never commit your real `API_KEY` to version control.
 
-If you'd like, I can remove the debug route and logging now. 
+If you'd like, I can add automated tests for the leaderboard endpoint.

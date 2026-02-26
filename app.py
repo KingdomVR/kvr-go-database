@@ -152,6 +152,37 @@ def get_user_by_pin(pin):
     return jsonify(user_to_dict(row))
 
 
+@app.route("/leaderboard/chess", methods=["GET"])
+@require_api_key
+def chess_leaderboard():
+    """Return users and their `chess_points` for a leaderboard.
+
+    Query params:
+    - `limit` (int, optional): maximum number of rows to return
+    - `order` (asc|desc, default desc): sort order by `chess_points`
+    """
+    limit = request.args.get("limit", type=int)
+    order = (request.args.get("order", "desc") or "desc").lower()
+    if order not in ("asc", "desc"):
+        order = "desc"
+
+    conn = get_db()
+    try:
+        base_sql = f"SELECT username, chess_points FROM users ORDER BY chess_points {order.upper()}"
+        if limit:
+            rows = conn.execute(base_sql + " LIMIT ?", (limit,)).fetchall()
+        else:
+            rows = conn.execute(base_sql).fetchall()
+    finally:
+        conn.close()
+
+    result = [
+        {"username": r["username"], "chess_points": r["chess_points"]}
+        for r in rows
+    ]
+    return jsonify(result)
+
+
 @app.route("/users/<username>", methods=["PATCH"])
 @require_api_key
 def update_user(username):
