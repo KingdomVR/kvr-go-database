@@ -491,31 +491,31 @@ def admin_create_user():
     if not _admin_is_authorized():
         return _unauthorized()
     data = request.get_json(silent=True) or {}
-        username = data.get('username')
-        pin = data.get('pin')
-        if not username or pin is None:
-                abort(400, description="'username' and 'pin' are required.")
-        conn = get_db()
-        try:
-                # accept arbitrary other fields present in the table
-                cols = get_user_columns(conn)
-                insert_cols = ['username', 'pin']
-                values = [username, pin]
-                for c in cols:
-                        if c in ('id', 'username', 'pin'):
-                                continue
-                        if c in data:
-                                insert_cols.append(c)
-                                values.append(data[c])
-                q = f"INSERT INTO users ({', '.join(insert_cols)}) VALUES ({', '.join(['?']*len(values))})"
-                conn.execute(q, tuple(values))
-                conn.commit()
-                row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-                return jsonify({k: row[k] for k in row.keys()}), 201
-        except sqlite3.IntegrityError as exc:
-                abort(409, description=str(exc))
-        finally:
-                conn.close()
+    username = data.get('username')
+    pin = data.get('pin')
+    if not username or pin is None:
+        abort(400, description="'username' and 'pin' are required.")
+    conn = get_db()
+    try:
+        # accept arbitrary other fields present in the table
+        cols = get_user_columns(conn)
+        insert_cols = ['username', 'pin']
+        values = [username, pin]
+        for c in cols:
+            if c in ('id', 'username', 'pin'):
+                continue
+            if c in data:
+                insert_cols.append(c)
+                values.append(data[c])
+        q = f"INSERT INTO users ({', '.join(insert_cols)}) VALUES ({', '.join(['?']*len(values))})"
+        conn.execute(q, tuple(values))
+        conn.commit()
+        row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        return jsonify({k: row[k] for k in row.keys()}), 201
+    except sqlite3.IntegrityError as exc:
+        abort(409, description=str(exc))
+    finally:
+        conn.close()
 
 
 @admin_app.route('/api/users/<username>', methods=['PATCH'])
@@ -523,26 +523,26 @@ def admin_update_user(username):
     if not _admin_is_authorized():
         return _unauthorized()
     data = request.get_json(silent=True) or {}
-        if not data:
-                abort(400, description='No data provided')
-        conn = get_db()
-        try:
-                cols = get_user_columns(conn)
-                updates = {k: v for k, v in data.items() if k in cols and k != 'id' and k != 'username'}
-                if not updates:
-                        abort(400, description='No valid fields to update')
-                set_clause = ', '.join(f"{k} = ?" for k in updates)
-                values = list(updates.values()) + [username]
-                cur = conn.execute(f"UPDATE users SET {set_clause} WHERE username = ?", values)
-                conn.commit()
-                if cur.rowcount == 0:
-                        abort(404, description=f"No user with username '{username}'.")
-                row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-                return jsonify({k: row[k] for k in row.keys()})
-        except sqlite3.IntegrityError as exc:
-                abort(409, description=str(exc))
-        finally:
-                conn.close()
+    if not data:
+        abort(400, description='No data provided')
+    conn = get_db()
+    try:
+        cols = get_user_columns(conn)
+        updates = {k: v for k, v in data.items() if k in cols and k != 'id' and k != 'username'}
+        if not updates:
+            abort(400, description='No valid fields to update')
+        set_clause = ', '.join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [username]
+        cur = conn.execute(f"UPDATE users SET {set_clause} WHERE username = ?", values)
+        conn.commit()
+        if cur.rowcount == 0:
+            abort(404, description=f"No user with username '{username}'.")
+        row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+        return jsonify({k: row[k] for k in row.keys()})
+    except sqlite3.IntegrityError as exc:
+        abort(409, description=str(exc))
+    finally:
+        conn.close()
 
 
 @admin_app.route('/api/users/<username>', methods=['DELETE'])
