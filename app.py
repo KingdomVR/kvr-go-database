@@ -565,8 +565,10 @@ def admin_delete_user(username):
 
 
 def _unauthorized():
-    # Basic auth challenge
-    return (jsonify({'error': 'Unauthorized'}), 401, {'WWW-Authenticate': 'Basic realm="KVR Admin"'})
+    # For XHR/fetch requests we don't want the browser to show the native
+    # basic-auth dialog. Return a plain JSON 401 without the
+    # `WWW-Authenticate` header so the client JS can handle the flow.
+    return (jsonify({'error': 'Unauthorized'}), 401)
 
 
 def _admin_is_authorized():
