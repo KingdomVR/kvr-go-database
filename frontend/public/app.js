@@ -52,14 +52,30 @@ el('transferForm').onsubmit = async (ev)=>{
   }catch(e){ alert(e && e.error ? JSON.stringify(e) : 'Transfer failed'); }
 };
 
-el('changePinForm').onsubmit = async (ev)=>{
+// Modal change PIN flow
+const modalOverlay = el('modalOverlay');
+const openChangePin = el('openChangePin');
+const cancelModal = el('cancelModal');
+const changePinModalForm = el('changePinModalForm');
+
+function openModal(){ modalOverlay.classList.remove('hidden'); modalOverlay.setAttribute('aria-hidden','false'); const inp = changePinModalForm.querySelector('input[name=new_pin]'); inp.focus(); inp.select(); }
+function closeModal(){ modalOverlay.classList.add('hidden'); modalOverlay.setAttribute('aria-hidden','true'); changePinModalForm.reset(); }
+
+openChangePin.onclick = openModal;
+cancelModal.onclick = closeModal;
+
+changePinModalForm.onsubmit = async (ev)=>{
   ev.preventDefault();
   const fd = new FormData(ev.target);
-  const new_pin = Number(fd.get('new_pin'));
+  const new_pin = fd.get('new_pin');
+  const confirm_pin = fd.get('confirm_pin');
+  if(!new_pin || !confirm_pin){ alert('Please provide PIN in both fields'); return; }
+  if(new_pin !== confirm_pin){ alert('PINs do not match'); return; }
   try{
-    await postJSON('/api/change-pin', { new_pin });
+    await postJSON('/api/change-pin', { new_pin: Number(new_pin) });
     alert('PIN changed');
-    ev.target.reset();
+    closeModal();
+    await loadMe();
   }catch(e){ alert(e && e.error ? JSON.stringify(e) : 'Change PIN failed'); }
 };
 

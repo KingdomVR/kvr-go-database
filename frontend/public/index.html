@@ -21,37 +21,62 @@
     <section id="dashboard" class="hidden">
       <div class="topbar">
         <div id="userGreeting"></div>
-        <button id="logoutBtn">Log out</button>
+        <div>
+          <button id="logoutBtn">Log out</button>
+        </div>
       </div>
 
+      <!-- Stats at top -->
+      <section class="card" id="statsCard">
+        <div class="user-stats">
+          <div class="stat-block">
+            <div class="small">Chess Points</div>
+            <div id="chessPoints" class="kcoin-balance">0</div>
+          </div>
+          <div class="stat-block">
+            <div class="small">Other Games</div>
+            <div class="kcoin-balance">—</div>
+          </div>
+        </div>
+        <div style="margin-top:12px"><button id="refreshLeaderboard">Refresh Leaderboard</button></div>
+        <ol id="leaderboard"></ol>
+      </section>
+
+      <!-- KCoin section -->
       <section class="card">
         <h3>KCoin</h3>
         <div>Balance: <span id="balance">0</span></div>
-        <form id="transferForm">
+        <form id="transferForm" class="transfer-form">
           <input name="to" placeholder="Recipient username" required />
           <input name="amount" placeholder="Amount" required />
           <button>Send</button>
         </form>
       </section>
 
-      <section class="card">
-        <h3>Games / Stats</h3>
-        <div id="games">
-          <h4>Chess</h4>
-          <div>Points: <span id="chessPoints">0</span></div>
-          <button id="refreshLeaderboard">Refresh Leaderboard</button>
-          <ol id="leaderboard"></ol>
-        </div>
-      </section>
-
+      <!-- Account actions -->
       <section class="card">
         <h3>Account</h3>
-        <form id="changePinForm">
-          <input name="new_pin" placeholder="New PIN" required />
-          <button>Change PIN</button>
-        </form>
+        <div class="small">Manage your account security</div>
+        <div style="margin-top:12px">
+          <button id="openChangePin">Change PIN</button>
+        </div>
       </section>
     </section>
+
+    <!-- Change PIN modal -->
+    <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+      <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <h3 id="modalTitle">Change PIN</h3>
+        <form id="changePinModalForm">
+          <input name="new_pin" placeholder="New PIN" inputmode="numeric" pattern="[0-9]*" required />
+          <input name="confirm_pin" placeholder="Confirm PIN" inputmode="numeric" pattern="[0-9]*" required />
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button type="submit">Save</button>
+            <button type="button" id="cancelModal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </main>
   <script src="/app.js"></script>
 </body>
