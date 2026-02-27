@@ -11,6 +11,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
+# Admin app (serves a small web UI on port 1212)
+from flask import render_template_string
+import threading
+admin_app = Flask("admin")
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -32,6 +36,20 @@ def get_db():
     # Enable foreign-key enforcement
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def get_user_columns(conn=None):
+    """Return the list of column names for the `users` table."""
+    close = conn is None
+    if conn is None:
+        conn = get_db()
+    try:
+        rows = conn.execute("PRAGMA table_info(users)").fetchall()
+        cols = [r[1] for r in rows]
+        return cols
+    finally:
+        if close:
+            conn.close()
 
 
 def init_db(conn=None):
@@ -234,6 +252,203 @@ def delete_user(username):
     return jsonify({"message": f"User '{username}' deleted."})
 
 
+# --------------------------
+# Admin app routes (UI)
+# --------------------------
+
+
+@admin_app.route("/")
+def admin_index():
+        html = """
+        <!doctype html>
+        <html>
+        <head>
+            <meta charset="utf-8" />
+            <title>KVR Admin</title>
+            <style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px}</style>
+        </head>
+        <body>
+            <h1>KVR Admin</h1>
+            <section>
+                <h2>Create user</h2>
+                <form id="createForm">
+                    <div id="createInputs"></div>
+                    <button type="submit">Create</button>
+                </form>
+            </section>
+
+            <section>
+                <h2>Users</h2>
+                <div id="users"></div>
+            </section>
+
+            <script>
+            async function fetchJSON(path, opts){
+                const res = await fetch(path, opts);
+                if(!res.ok){ const txt = await res.text(); alert('Error: '+res); throw new Error(txt);} 
+                return res.json();
+            }
+
+            async function load(){
+                const fields = await fetchJSON('/api/fields');
+                const users = await fetchJSON('/api/users');
+
+                // build create form inputs
+                const createInputs = document.getElementById('createInputs');
+                createInputs.innerHTML = '';
+                for(const f of fields){
+                    if(f === 'id') continue;
+                    const inp = document.createElement('input'); inp.name = f; inp.placeholder = f; inp.style.marginRight='8px';
+                    createInputs.appendChild(inp);
+                }
+
+                // build users table
+                const usersDiv = document.getElementById('users');
+                usersDiv.innerHTML = '';
+                const table = document.createElement('table');
+                const thead = document.createElement('thead');
+                const tr = document.createElement('tr');
+                for(const f of fields){ const th = document.createElement('th'); th.textContent = f; tr.appendChild(th); }
+                tr.appendChild(document.createElement('th'));
+                thead.appendChild(tr); table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+
+                for(const u of users){
+                    const row = document.createElement('tr');
+                    for(const f of fields){
+                        const td = document.createElement('td');
+                        if(f === 'id'){
+                            td.textContent = u[f] ?? '';
+                        } else if(f === 'username'){
+                            const span = document.createElement('span'); span.textContent = u[f]; td.appendChild(span);
+                        } else {
+                            const inp = document.createElement('input'); inp.value = u[f] ?? ''; inp.dataset.field = f; inp.style.width='100%'; td.appendChild(inp);
+                        }
+                        row.appendChild(td);
+                    }
+                    const tdActions = document.createElement('td');
+                    const save = document.createElement('button'); save.textContent='Save';
+                    save.onclick = async ()=>{
+                        const updates = {};
+                        for(const inp of row.querySelectorAll('input')){
+                            updates[inp.dataset.field] = isNaN(inp.value) ? inp.value : (inp.value === '' ? null : Number(inp.value));
+                        }
+                        await fetchJSON('/api/users/'+encodeURIComponent(u.username), {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)});
+                        load();
+                    };
+                    const del = document.createElement('button'); del.textContent='Delete'; del.style.marginLeft='8px';
+                    del.onclick = async ()=>{ if(confirm('Delete '+u.username+'?')){ await fetchJSON('/api/users/'+encodeURIComponent(u.username), {method:'DELETE'}); load(); } };
+                    tdActions.appendChild(save); tdActions.appendChild(del); row.appendChild(tdActions);
+                    tbody.appendChild(row);
+                }
+                table.appendChild(tbody); usersDiv.appendChild(table);
+            }
+
+            document.getElementById('createForm').onsubmit = async (ev)=>{
+                ev.preventDefault();
+                const form = ev.target; const data = {};
+                for(const inp of form.querySelectorAll('input')){ if(inp.value !== ''){ const num = Number(inp.value); data[inp.name] = isNaN(num) ? inp.value : num; } }
+                await fetchJSON('/api/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+                form.reset(); load();
+            }
+
+            load();
+            </script>
+        </body>
+        </html>
+        """
+        return render_template_string(html)
+
+
+@admin_app.route('/api/fields', methods=['GET'])
+def admin_fields():
+        conn = get_db()
+        try:
+                cols = get_user_columns(conn)
+                return jsonify(cols)
+        finally:
+                conn.close()
+
+
+@admin_app.route('/api/users', methods=['GET'])
+def admin_list_users():
+        conn = get_db()
+        try:
+                rows = conn.execute('SELECT * FROM users').fetchall()
+                result = [ {k: row[k] for k in row.keys()} for row in rows ]
+                return jsonify(result)
+        finally:
+                conn.close()
+
+
+@admin_app.route('/api/users', methods=['POST'])
+def admin_create_user():
+        data = request.get_json(silent=True) or {}
+        username = data.get('username')
+        pin = data.get('pin')
+        if not username or pin is None:
+                abort(400, description="'username' and 'pin' are required.")
+        conn = get_db()
+        try:
+                # accept arbitrary other fields present in the table
+                cols = get_user_columns(conn)
+                insert_cols = ['username', 'pin']
+                values = [username, pin]
+                for c in cols:
+                        if c in ('id', 'username', 'pin'):
+                                continue
+                        if c in data:
+                                insert_cols.append(c)
+                                values.append(data[c])
+                q = f"INSERT INTO users ({', '.join(insert_cols)}) VALUES ({', '.join(['?']*len(values))})"
+                conn.execute(q, tuple(values))
+                conn.commit()
+                row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+                return jsonify({k: row[k] for k in row.keys()}), 201
+        except sqlite3.IntegrityError as exc:
+                abort(409, description=str(exc))
+        finally:
+                conn.close()
+
+
+@admin_app.route('/api/users/<username>', methods=['PATCH'])
+def admin_update_user(username):
+        data = request.get_json(silent=True) or {}
+        if not data:
+                abort(400, description='No data provided')
+        conn = get_db()
+        try:
+                cols = get_user_columns(conn)
+                updates = {k: v for k, v in data.items() if k in cols and k != 'id' and k != 'username'}
+                if not updates:
+                        abort(400, description='No valid fields to update')
+                set_clause = ', '.join(f"{k} = ?" for k in updates)
+                values = list(updates.values()) + [username]
+                cur = conn.execute(f"UPDATE users SET {set_clause} WHERE username = ?", values)
+                conn.commit()
+                if cur.rowcount == 0:
+                        abort(404, description=f"No user with username '{username}'.")
+                row = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+                return jsonify({k: row[k] for k in row.keys()})
+        except sqlite3.IntegrityError as exc:
+                abort(409, description=str(exc))
+        finally:
+                conn.close()
+
+
+@admin_app.route('/api/users/<username>', methods=['DELETE'])
+def admin_delete_user(username):
+        conn = get_db()
+        try:
+                cur = conn.execute('DELETE FROM users WHERE username = ?', (username,))
+                conn.commit()
+                if cur.rowcount == 0:
+                        abort(404, description=f"No user with username '{username}'.")
+                return jsonify({'message': 'deleted'})
+        finally:
+                conn.close()
+
+
 
 # ---------------------------------------------------------------------------
 # Error handlers
@@ -255,4 +470,11 @@ def handle_error(exc):
 if __name__ == "__main__":
     with app.app_context():
         init_db()
+    # start the admin UI on port 1212 in a background thread
+    def _run_admin():
+        admin_app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("ADMIN_PORT", 1212)))
+
+    t = threading.Thread(target=_run_admin, daemon=True)
+    t.start()
+
     app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
