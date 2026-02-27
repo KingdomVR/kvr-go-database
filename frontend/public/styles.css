@@ -1,0 +1,7 @@
+body{font-family:system-ui,Segoe UI,Arial;margin:18px}
+.hidden{display:none}
+main{max-width:900px}
+.card{border:1px solid #ddd;padding:12px;margin:12px 0;border-radius:6px}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+form input{margin-right:8px;padding:6px}
+button{padding:6px 10px}

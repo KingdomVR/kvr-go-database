@@ -1,0 +1,17 @@
+{
+  "name": "kvr-go-frontend",
+  "version": "0.1.0",
+  "description": "Frontend and proxy for KVR Go (Node.js)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "node-fetch": "^2.6.7"
+  }
+}
