@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>KVR Go — Frontend</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <main>
+    <h1>KVR Go</h1>
+
+    <section id="loginSection">
+      <h2>Sign in</h2>
+      <form id="loginForm">
+        <input name="username" placeholder="Username" required />
+        <input name="pin" placeholder="PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
+        <button class="btn btn-primary">Sign in</button>
+      </form>
+    </section>
+
+    <section id="dashboard" class="hidden">
+      <div class="topbar">
+        <div id="userGreeting"></div>
+        <div>
+          <button id="logoutBtn" class="btn btn-ghost">Log out</button>
+        </div>
+      </div>
+
+      <!-- Stats at top -->
+      <section class="card" id="statsCard">
+        <div class="user-stats">
+          <div class="stat-block">
+            <div class="small">Chess Points</div>
+            <div id="chessPoints" class="kcoin-balance">0</div>
+          </div>
+          <!-- Other games removed for now -->
+        </div>
+        <div style="margin-top:12px">
+          <h4 class="small">Chess Leaderboard</h4>
+          <div style="margin:8px 0"><button id="refreshLeaderboard" class="btn btn-ghost">Refresh Leaderboard</button></div>
+          <ol id="leaderboard"></ol>
+        </div>
+      </section>
+
+      <!-- KCoin section -->
+      <section class="card">
+        <h3>KCoin</h3>
+        <div>Balance: <span id="balance">0</span></div>
+        <form id="transferForm" class="transfer-form">Transfer: 
+          <input name="to" placeholder="Recipient username" required />
+          <input name="amount" placeholder="Amount" inputmode="numeric" pattern="[0-9]*" maxlength="12" required class="compact" />
+          <button class="btn btn-primary">Send</button>
+        </form>
+      </section>
+
+      <!-- Account actions -->
+      <section class="card">
+        <h3>Account</h3>
+        <div class="small">Manage your account security</div>
+        <div style="margin-top:12px">
+          <button id="openChangePin" class="btn btn-primary">Change PIN</button>
+        </div>
+      </section>
+    </section>
+
+    <!-- Change PIN modal -->
+    <div id="modalOverlay" class="modal-overlay hidden" aria-hidden="true">
+      <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <h3 id="modalTitle">Change PIN</h3>
+        <form id="changePinModalForm">
+          <input name="old_pin" placeholder="Current PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
+          <input name="new_pin" placeholder="New PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
+          <input name="confirm_pin" placeholder="Confirm PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" id="cancelModal" class="btn btn-ghost">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

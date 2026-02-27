@@ -63,7 +63,7 @@ def init_db(conn=None):
         CREATE TABLE IF NOT EXISTS users (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             username    TEXT    NOT NULL UNIQUE,
-            pin         INTEGER NOT NULL UNIQUE,
+            pin         TEXT    NOT NULL UNIQUE,
             kvrcoin     REAL    NOT NULL DEFAULT 0,
             chess_points REAL   NOT NULL DEFAULT 0
         )
@@ -151,8 +151,6 @@ def create_user():
 
     if not username or pin is None:
         abort(400, description="'username' and 'pin' are required.")
-    if not isinstance(pin, int):
-        abort(400, description="'pin' must be an integer.")
 
     kvrcoin = data.get("kvrcoin", 0)
     chess_points = data.get("chess_points", 0)
@@ -190,10 +188,10 @@ def get_user_by_username(username):
     return jsonify(user_to_dict(row))
 
 
-@app.route("/users/pin/<int:pin>", methods=["GET"])
+@app.route("/users/pin/<pin>", methods=["GET"])
 @require_api_key
 def get_user_by_pin(pin):
-    """Return a user looked up by PIN."""
+    """Return a user looked up by PIN (PINs are stored as TEXT)."""
     conn = get_db()
     try:
         row = conn.execute(

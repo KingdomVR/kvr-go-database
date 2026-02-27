@@ -1,3 +1,4 @@
+```markdown
 # KVR Database Server — Usage
 
 This document explains how to run the server, call the HTTP API, and add new fields to the `users` table.
@@ -147,3 +148,54 @@ Cleanup and security notes
 - Never commit your real `API_KEY` to version control.
 
 If you'd like, I can add automated tests for the leaderboard endpoint.
+
+--------------------------------------------------
+Frontend
+--------------------------------------------------
+
+Frontend (Node.js + Express proxy)
+---------------------------------
+
+The frontend serves a static single-page app and provides a small server-side proxy that keeps the backend `X-API-Key` secret.
+
+1. Install dependencies
+
+```bash
+cd frontend
+npm install
+```
+
+2. Configure environment
+
+- Copy the example env and edit values as needed:
+
+```bash
+cd frontend
+copy .env.example .env    # Windows (cmd)
+# or
+cp .env.example .env      # macOS / Linux
+```
+
+- Minimum variables to set in `frontend/.env`:
+
+```
+KVR_API_KEY=your-backend-api-key
+KVR_BACKEND_URL=http://127.0.0.1:5000
+SESSION_SECRET=a-strong-secret
+FRONTEND_PORT=3000    # optional, defaults to 3000
+```
+
+3. Run the frontend
+
+```bash
+# from the frontend directory
+npm start
+```
+
+The frontend will listen on the port in `FRONTEND_PORT` (default 3000) and proxy API requests to `KVR_BACKEND_URL`.
+
+Notes:
+- Ensure the Python backend is running (default http://127.0.0.1:5000) before starting the frontend so the proxy can reach it.
+- The proxy appends the `X-API-Key` header from `KVR_API_KEY` when forwarding requests; keep that value secret.
+
+```
