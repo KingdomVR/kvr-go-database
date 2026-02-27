@@ -14,7 +14,7 @@
       <form id="loginForm">
         <input name="username" placeholder="Username" required />
         <input name="pin" placeholder="PIN" type="password" required />
-        <button>Sign in</button>
+        <button class="btn btn-primary">Sign in</button>
       </form>
     </section>
 
@@ -22,7 +22,7 @@
       <div class="topbar">
         <div id="userGreeting"></div>
         <div>
-          <button id="logoutBtn">Log out</button>
+          <button id="logoutBtn" class="btn btn-ghost">Log out</button>
         </div>
       </div>
 
@@ -33,13 +33,13 @@
             <div class="small">Chess Points</div>
             <div id="chessPoints" class="kcoin-balance">0</div>
           </div>
-          <div class="stat-block">
-            <div class="small">Other Games</div>
-            <div class="kcoin-balance">—</div>
-          </div>
+          <!-- Other games removed for now -->
         </div>
-        <div style="margin-top:12px"><button id="refreshLeaderboard">Refresh Leaderboard</button></div>
-        <ol id="leaderboard"></ol>
+        <div style="margin-top:12px">
+          <h4 class="small">Chess Leaderboard</h4>
+          <div style="margin:8px 0"><button id="refreshLeaderboard" class="btn btn-ghost">Refresh Leaderboard</button></div>
+          <ol id="leaderboard"></ol>
+        </div>
       </section>
 
       <!-- KCoin section -->
@@ -49,7 +49,7 @@
         <form id="transferForm" class="transfer-form">
           <input name="to" placeholder="Recipient username" required />
           <input name="amount" placeholder="Amount" required />
-          <button>Send</button>
+          <button class="btn btn-primary">Send</button>
         </form>
       </section>
 
@@ -58,7 +58,7 @@
         <h3>Account</h3>
         <div class="small">Manage your account security</div>
         <div style="margin-top:12px">
-          <button id="openChangePin">Change PIN</button>
+          <button id="openChangePin" class="btn btn-primary">Change PIN</button>
         </div>
       </section>
     </section>
@@ -71,8 +71,8 @@
           <input name="new_pin" placeholder="New PIN" inputmode="numeric" pattern="[0-9]*" required />
           <input name="confirm_pin" placeholder="Confirm PIN" inputmode="numeric" pattern="[0-9]*" required />
           <div style="display:flex;gap:8px;margin-top:12px">
-            <button type="submit">Save</button>
-            <button type="button" id="cancelModal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+            <button type="button" id="cancelModal" class="btn btn-ghost">Cancel</button>
           </div>
         </form>
       </div>

@@ -13,6 +13,7 @@ const userGreeting = el('userGreeting');
 const balanceEl = el('balance');
 const chessPointsEl = el('chessPoints');
 const leaderboardEl = el('leaderboard');
+let currentUser = null;
 
 loginForm.onsubmit = async (ev)=>{
   ev.preventDefault();
@@ -28,13 +29,24 @@ loginForm.onsubmit = async (ev)=>{
 };
 
 async function loadMe(){
-  try{
-    const me = await fetch('/api/me').then(r=>r.json());
-    userGreeting.textContent = `Hello, ${me.username}`;
-    balanceEl.textContent = Number(me.kvrcoin).toFixed(2);
-    chessPointsEl.textContent = Number(me.chess_points || 0);
-    await loadLeaderboard();
-  }catch(e){ console.error(e); }
+  const res = await fetch('/api/me');
+  if(!res.ok){
+    // propagate an error so callers know load failed (e.g. not authenticated)
+    const body = await res.json().catch(()=>null);
+    const err = new Error('Not authenticated');
+    err.status = res.status;
+    err.body = body;
+    throw err;
+  }
+  const me = await res.json();
+  currentUser = me.username;
+  userGreeting.textContent = `Hello, ${me.username}`;
+  balanceEl.innerHTML = `<span class="kcoin-amount"><span class="kcoin-icon">🪙</span>${Number(me.kvrcoin || 0).toFixed(2)}</span>`;
+  const _k = balanceEl.querySelector('.kcoin-amount');
+  if(_k){ _k.classList.add('pulse'); setTimeout(()=>_k.classList.remove('pulse'), 1400); }
+  chessPointsEl.textContent = Number(me.chess_points || 0);
+  await loadLeaderboard();
+  return me;
 }
 
 el('logoutBtn').onclick = async ()=>{ await postJSON('/api/logout', {}); dashboard.classList.add('hidden'); loginSection.classList.remove('hidden'); };
@@ -81,10 +93,32 @@ changePinModalForm.onsubmit = async (ev)=>{
 
 async function loadLeaderboard(){
   try{
+    // Note: backend doesn't support "around-user" queries, so fetch leaderboard
+    // and slice around the current user client-side.
     const lb = await fetch('/api/chess/leaderboard').then(r=>r.json());
     leaderboardEl.innerHTML = '';
-    for(const row of lb){
-      const li = document.createElement('li'); li.textContent = `${row.username}: ${row.chess_points}`; leaderboardEl.appendChild(li);
+    if(!Array.isArray(lb) || lb.length === 0){ leaderboardEl.textContent = 'No leaderboard data'; return; }
+
+    // Find current user's index
+    const idx = currentUser ? lb.findIndex(r => r.username === currentUser) : -1;
+    let start = 0, end = Math.min(lb.length, 5);
+    if(idx >= 0){
+      start = Math.max(0, idx - 2);
+      end = Math.min(lb.length, idx + 3);
+      // adjust to ensure we show 5 items when possible
+      if(end - start < 5){
+        if(start === 0) end = Math.min(lb.length, start + 5);
+        else if(end === lb.length) start = Math.max(0, end - 5);
+      }
+    }
+
+    for(let i = start; i < end; i++){
+      const row = lb[i];
+      const li = document.createElement('li');
+      li.className = (row.username === currentUser) ? 'current-user' : '';
+      const rank = i + 1;
+      li.innerHTML = `<div><strong>#${rank}</strong> ${row.username}</div><div class="small">${row.chess_points}</div>`;
+      leaderboardEl.appendChild(li);
     }
   }catch(e){ console.error('lb', e); }
 }
@@ -97,5 +131,8 @@ el('refreshLeaderboard').onclick = loadLeaderboard;
     await loadMe();
     loginSection.classList.add('hidden');
     dashboard.classList.remove('hidden');
-  }catch(e){ /* not signed in */ }
+  }catch(e){
+    // not authenticated — keep login visible
+    console.log('No active session');
+  }
 })();

@@ -13,7 +13,10 @@ html,body{height:100%}
 body{
 	margin:0;
 	font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+	/* keep a stable background while scrolling */
 	background: linear-gradient(180deg,#071025 0%, #071827 60%);
+	background-attachment: fixed;
+	background-size: cover;
 	color:#e6eef6;
 	-webkit-font-smoothing:antialiased;
 	-moz-osx-font-smoothing:grayscale;
@@ -28,10 +31,15 @@ h1{margin:0 0 18px;font-weight:600}
 
 .app-grid{display:grid;grid-template-columns:1fr 360px;gap:20px}
 
+.user-stats{display:flex;gap:18px;align-items:center}
+.stat-block{flex:1}
+
 .card{
-	background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+	/* use a consistent semi-opaque sheet so underlying gradient doesn't create visible color jumps */
+	background: rgba(11,17,28,0.55);
 	border:1px solid rgba(255,255,255,0.04);
 	padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.6);
+	margin-bottom:18px;
 }
 
 .centered{max-width:420px;margin:18px 0}
@@ -47,6 +55,12 @@ form button{cursor:pointer;background:linear-gradient(90deg,var(--accent),var(--
 
 .kcoin-balance{font-size:28px;font-weight:700;color:var(--accent);margin:8px 0}
 
+/* KCoin amount styling */
+.kcoin-amount{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:999px;background:linear-gradient(90deg,#2b2f36,rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.04);color:#ffd166;font-weight:700}
+.kcoin-amount .kcoin-icon{font-size:18px;transform:translateY(1px)}
+.kcoin-amount.pulse{animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,209,102,0.0)}50%{box-shadow:0 6px 24px rgba(255,209,102,0.06)}100%{box-shadow:0 0 0 0 rgba(255,209,102,0.0)}}
+
 .transfer-form{display:flex;gap:8px;flex-wrap:wrap}
 
 #leaderboard{list-style:none;padding-left:0;margin:8px 0}
@@ -61,6 +75,7 @@ form button{cursor:pointer;background:linear-gradient(90deg,var(--accent),var(--
 
 /* Modal styles */
 .modal-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);backdrop-filter:blur(6px);z-index:1200;animation:fadeIn .18s ease forwards}
+.modal-overlay.hidden{display:none;animation:none}
 .modal-sheet{width:min(520px,92%);background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:12px;padding:20px;border:1px solid rgba(255,255,255,0.05);box-shadow:0 10px 40px rgba(2,6,23,0.7);transform:translateY(-8px);animation:popIn .22s cubic-bezier(.2,.9,.2,1) forwards}
 .modal-sheet h3{margin:0 0 12px}
 .modal-sheet form{display:flex;flex-direction:column}
@@ -74,6 +89,15 @@ form button{cursor:pointer;background:linear-gradient(90deg,var(--accent),var(--
 button{transition:transform .12s ease, box-shadow .12s ease}
 button:active{transform:translateY(1px) scale(.995)}
 button:hover{box-shadow:0 6px 18px rgba(96,165,250,0.12)}
+
+/* Button variants */
+.btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-weight:600}
+.btn-primary{background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#022;border:none}
+.btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+.btn-danger{background:linear-gradient(90deg,#ff7a7a,#ff5a5a);color:#200}
+
+/* leaderboard current user highlight */
+.current-user{background:linear-gradient(90deg, rgba(110,231,183,0.08), rgba(96,165,250,0.04));border:1px solid rgba(110,231,183,0.12)}
 
 /* leaderboard animation */
 #leaderboard li{opacity:0;transform:translateX(-8px);animation:rowIn .28s ease forwards}
