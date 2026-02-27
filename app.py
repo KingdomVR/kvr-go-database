@@ -7,6 +7,7 @@ import os
 import functools
 from flask import Flask, request, jsonify, abort
 from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
@@ -69,8 +70,43 @@ def init_db(conn=None):
         """
     )
     conn.commit()
+    # Create admin table to store password hash (single-row table)
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS admin (
+            id INTEGER PRIMARY KEY,
+            password_hash TEXT
+        )
+        """
+    )
+    conn.commit()
     if close:
         conn.close()
+
+
+def get_admin_hash(conn=None):
+    close = conn is None
+    if conn is None:
+        conn = get_db()
+    try:
+        row = conn.execute("SELECT password_hash FROM admin WHERE id = 1").fetchone()
+        return row[0] if row is not None else None
+    finally:
+        if close:
+            conn.close()
+
+
+def set_admin_hash(password_hash, conn=None):
+    close = conn is None
+    if conn is None:
+        conn = get_db()
+    try:
+        # Insert or replace single-row (id=1)
+        conn.execute("INSERT OR REPLACE INTO admin (id, password_hash) VALUES (1, ?)", (password_hash,))
+        conn.commit()
+    finally:
+        if close:
+            conn.close()
 
 
 def user_to_dict(row):
@@ -265,31 +301,71 @@ def admin_index():
         <head>
             <meta charset="utf-8" />
             <title>KVR Admin</title>
-            <style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px}</style>
+            <style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px} .hidden{display:none}</style>
         </head>
         <body>
             <h1>KVR Admin</h1>
-            <section>
-                <h2>Create user</h2>
-                <form id="createForm">
-                    <div id="createInputs"></div>
-                    <button type="submit">Create</button>
+            <section id="setPasswordSection" class="hidden">
+                <h2>Set Admin Password</h2>
+                <form id="setPasswordForm">
+                    <input type="password" id="newPass" placeholder="New password" />
+                    <input type="password" id="newPass2" placeholder="Confirm password" />
+                    <button type="submit">Set Password</button>
                 </form>
             </section>
 
-            <section>
-                <h2>Users</h2>
-                <div id="users"></div>
+            <section id="loginSection" class="hidden">
+                <h2>Admin Login</h2>
+                <button id="loginBtn">Enter password</button>
+            </section>
+
+            <section id="adminUI" class="hidden">
+                <section>
+                    <h2>Create user</h2>
+                    <form id="createForm">
+                        <div id="createInputs"></div>
+                        <button type="submit">Create</button>
+                    </form>
+                </section>
+
+                <section>
+                    <h2>Users</h2>
+                    <div id="users"></div>
+                </section>
             </section>
 
             <script>
-            async function fetchJSON(path, opts){
+            let authHeader = null;
+
+            async function fetchJSON(path, opts={}){
+                opts.headers = opts.headers || {};
+                if(authHeader){ opts.headers['Authorization'] = authHeader; }
                 const res = await fetch(path, opts);
-                if(!res.ok){ const txt = await res.text(); alert('Error: '+res); throw new Error(txt);} 
+                if(!res.ok){ const txt = await res.text(); throw {status: res.status, text: txt}; }
                 return res.json();
             }
 
-            async function load(){
+            function show(id){ document.getElementById(id).classList.remove('hidden'); }
+            function hide(id){ document.getElementById(id).classList.add('hidden'); }
+
+            async function promptForPassword(){
+                while(true){
+                    const pwd = prompt('Enter admin password (cancel to abort):');
+                    if(pwd === null) throw 'cancelled';
+                    authHeader = 'Basic ' + btoa('admin:' + pwd);
+                    try{
+                        const r = await fetch('/api/fields', {headers: {'Authorization': authHeader}});
+                        if(r.status === 200) return;
+                        if(r.status === 401){ alert('Invalid password'); continue; }
+                        throw 'error';
+                    }catch(e){
+                        if(e && e.status === 401) { alert('Invalid password'); continue; }
+                        throw e;
+                    }
+                }
+            }
+
+            async function loadAdminUI(){
                 const fields = await fetchJSON('/api/fields');
                 const users = await fetchJSON('/api/users');
 
@@ -334,25 +410,50 @@ def admin_index():
                             updates[inp.dataset.field] = isNaN(inp.value) ? inp.value : (inp.value === '' ? null : Number(inp.value));
                         }
                         await fetchJSON('/api/users/'+encodeURIComponent(u.username), {method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(updates)});
-                        load();
+                        await refresh();
                     };
                     const del = document.createElement('button'); del.textContent='Delete'; del.style.marginLeft='8px';
-                    del.onclick = async ()=>{ if(confirm('Delete '+u.username+'?')){ await fetchJSON('/api/users/'+encodeURIComponent(u.username), {method:'DELETE'}); load(); } };
+                    del.onclick = async ()=>{ if(confirm('Delete '+u.username+'?')){ await fetchJSON('/api/users/'+encodeURIComponent(u.username), {method:'DELETE'}); await refresh(); } };
                     tdActions.appendChild(save); tdActions.appendChild(del); row.appendChild(tdActions);
                     tbody.appendChild(row);
                 }
                 table.appendChild(tbody); usersDiv.appendChild(table);
             }
 
+            async function refresh(){ await loadAdminUI(); }
+
             document.getElementById('createForm').onsubmit = async (ev)=>{
                 ev.preventDefault();
                 const form = ev.target; const data = {};
                 for(const inp of form.querySelectorAll('input')){ if(inp.value !== ''){ const num = Number(inp.value); data[inp.name] = isNaN(num) ? inp.value : num; } }
                 await fetchJSON('/api/users', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
-                form.reset(); load();
+                form.reset(); await refresh();
             }
 
-            load();
+            document.getElementById('setPasswordForm').onsubmit = async (ev)=>{
+                ev.preventDefault();
+                const p1 = document.getElementById('newPass').value;
+                const p2 = document.getElementById('newPass2').value;
+                if(p1 !== p2){ alert('Passwords do not match'); return; }
+                if(p1.length < 4){ alert('Password too short'); return; }
+                await fetch('/api/admin/set', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password: p1})});
+                authHeader = 'Basic ' + btoa('admin:' + p1);
+                hide('setPasswordSection'); show('adminUI'); await refresh();
+            }
+
+            document.getElementById('loginBtn').onclick = async ()=>{
+                try{ await promptForPassword(); hide('loginSection'); show('adminUI'); await refresh(); }catch(e){ alert('Login cancelled'); }
+            }
+
+            async function init(){
+                try{
+                    const s = await fetchJSON('/api/admin/status');
+                    if(!s.has_password){ show('setPasswordSection'); }
+                    else { show('loginSection'); }
+                }catch(e){ alert('Error initializing admin UI'); }
+            }
+
+            init();
             </script>
         </body>
         </html>
@@ -362,28 +463,34 @@ def admin_index():
 
 @admin_app.route('/api/fields', methods=['GET'])
 def admin_fields():
-        conn = get_db()
-        try:
-                cols = get_user_columns(conn)
-                return jsonify(cols)
-        finally:
-                conn.close()
+    if not _admin_is_authorized():
+        return _unauthorized()
+    conn = get_db()
+    try:
+        cols = get_user_columns(conn)
+        return jsonify(cols)
+    finally:
+        conn.close()
 
 
 @admin_app.route('/api/users', methods=['GET'])
 def admin_list_users():
-        conn = get_db()
-        try:
-                rows = conn.execute('SELECT * FROM users').fetchall()
-                result = [ {k: row[k] for k in row.keys()} for row in rows ]
-                return jsonify(result)
-        finally:
-                conn.close()
+    if not _admin_is_authorized():
+        return _unauthorized()
+    conn = get_db()
+    try:
+        rows = conn.execute('SELECT * FROM users').fetchall()
+        result = [ {k: row[k] for k in row.keys()} for row in rows ]
+        return jsonify(result)
+    finally:
+        conn.close()
 
 
 @admin_app.route('/api/users', methods=['POST'])
 def admin_create_user():
-        data = request.get_json(silent=True) or {}
+    if not _admin_is_authorized():
+        return _unauthorized()
+    data = request.get_json(silent=True) or {}
         username = data.get('username')
         pin = data.get('pin')
         if not username or pin is None:
@@ -413,7 +520,9 @@ def admin_create_user():
 
 @admin_app.route('/api/users/<username>', methods=['PATCH'])
 def admin_update_user(username):
-        data = request.get_json(silent=True) or {}
+    if not _admin_is_authorized():
+        return _unauthorized()
+    data = request.get_json(silent=True) or {}
         if not data:
                 abort(400, description='No data provided')
         conn = get_db()
@@ -438,15 +547,62 @@ def admin_update_user(username):
 
 @admin_app.route('/api/users/<username>', methods=['DELETE'])
 def admin_delete_user(username):
-        conn = get_db()
-        try:
-                cur = conn.execute('DELETE FROM users WHERE username = ?', (username,))
-                conn.commit()
-                if cur.rowcount == 0:
-                        abort(404, description=f"No user with username '{username}'.")
-                return jsonify({'message': 'deleted'})
-        finally:
-                conn.close()
+    if not _admin_is_authorized():
+        return _unauthorized()
+    conn = get_db()
+    try:
+        cur = conn.execute('DELETE FROM users WHERE username = ?', (username,))
+        conn.commit()
+        if cur.rowcount == 0:
+            abort(404, description=f"No user with username '{username}'.")
+        return jsonify({'message': 'deleted'})
+    finally:
+        conn.close()
+
+
+
+# --------------------------
+# Admin password management + helpers
+# --------------------------
+
+
+def _unauthorized():
+    # Basic auth challenge
+    return (jsonify({'error': 'Unauthorized'}), 401, {'WWW-Authenticate': 'Basic realm="KVR Admin"'})
+
+
+def _admin_is_authorized():
+    # Check Authorization header for Basic auth and validate password
+    auth = request.authorization
+    if not auth or not auth.password:
+        return False
+    stored = get_admin_hash()
+    if not stored:
+        return False
+    return check_password_hash(stored, auth.password)
+
+
+@admin_app.route('/api/admin/status', methods=['GET'])
+def admin_status():
+    # Returns if admin password is set
+    stored = get_admin_hash()
+    return jsonify({'has_password': bool(stored)})
+
+
+@admin_app.route('/api/admin/set', methods=['POST'])
+def admin_set():
+    # Allow setting password only if none exists yet, otherwise require auth
+    stored = get_admin_hash()
+    if stored:
+        if not _admin_is_authorized():
+            return _unauthorized()
+    data = request.get_json(silent=True) or {}
+    pwd = data.get('password')
+    if not pwd or not isinstance(pwd, str) or len(pwd) < 4:
+        abort(400, description='Password must be provided and be at least 4 characters')
+    h = generate_password_hash(pwd)
+    set_admin_hash(h)
+    return jsonify({'message': 'admin password set'})
 
 
 
