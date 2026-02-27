@@ -1,6 +1,6 @@
-# KVR Go Database Server
+# KVR Go
 
-A simple Python REST API server that acts as a database for the KingdomVR world. It stores user data (username, PIN, KVRCoin balance, chess points) and exposes it through a secured API.
+A simple Python REST API server that acts as a central hub for the KingdomVR world. It stores user data (username, PIN, KVRCoin balance, chess points) and exposes it through a secured API so that other games (chess, etc.) have a way to store data centrally. Includes an admin page and a dashboard for users to manage their accounts. (coming soon)
 Can easily be modified for other use cases.
 
 ## Requirements
