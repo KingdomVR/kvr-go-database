@@ -300,7 +300,7 @@ def admin_index():
         <html>
         <head>
             <meta charset="utf-8" />
-            <title>KVR Admin</title>
+            <title>KVR Go Admin</title>
             <style>body{font-family:sans-serif;padding:20px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:8px} .hidden{display:none}</style>
         </head>
         <body>
