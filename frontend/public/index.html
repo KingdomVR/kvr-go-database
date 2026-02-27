@@ -13,7 +13,7 @@
       <h2>Sign in</h2>
       <form id="loginForm">
         <input name="username" placeholder="Username" required />
-        <input name="pin" placeholder="PIN" type="password" required />
+        <input name="pin" placeholder="PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
         <button class="btn btn-primary">Sign in</button>
       </form>
     </section>
@@ -46,9 +46,9 @@
       <section class="card">
         <h3>KCoin</h3>
         <div>Balance: <span id="balance">0</span></div>
-        <form id="transferForm" class="transfer-form">
+        <form id="transferForm" class="transfer-form">Transfer: 
           <input name="to" placeholder="Recipient username" required />
-          <input name="amount" placeholder="Amount" required />
+          <input name="amount" placeholder="Amount" inputmode="numeric" pattern="[0-9]*" maxlength="12" required class="compact" />
           <button class="btn btn-primary">Send</button>
         </form>
       </section>
@@ -68,8 +68,9 @@
       <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <h3 id="modalTitle">Change PIN</h3>
         <form id="changePinModalForm">
-          <input name="new_pin" placeholder="New PIN" inputmode="numeric" pattern="[0-9]*" required />
-          <input name="confirm_pin" placeholder="Confirm PIN" inputmode="numeric" pattern="[0-9]*" required />
+          <input name="old_pin" placeholder="Current PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
+          <input name="new_pin" placeholder="New PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
+          <input name="confirm_pin" placeholder="Confirm PIN" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" required class="compact" />
           <div style="display:flex;gap:8px;margin-top:12px">
             <button type="submit" class="btn btn-primary">Save</button>
             <button type="button" id="cancelModal" class="btn btn-ghost">Cancel</button>

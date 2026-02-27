@@ -46,7 +46,7 @@ app.post('/api/login', async (req, res) => {
   if (!username || pin === undefined) return res.status(400).json({ error: 'username and pin required' });
 
   try{
-    const user = await backendFetch(`/users/pin/${encodeURIComponent(Number(pin))}`);
+    const user = await backendFetch(`/users/pin/${encodeURIComponent(pin)}`);
     if (!user || user.username !== username){
       return res.status(401).json({ error: 'Invalid username or pin' });
     }
@@ -101,11 +101,17 @@ app.post('/api/transfer', async (req, res) => {
 
 app.post('/api/change-pin', async (req, res) => {
   const username = req.session.user;
-  const { new_pin } = req.body || {};
+  const { new_pin, old_pin } = req.body || {};
   if(!username) return res.status(401).json({ error: 'not authenticated' });
-  if(new_pin === undefined) return res.status(400).json({ error: 'new_pin required' });
+  if(new_pin === undefined || old_pin === undefined) return res.status(400).json({ error: 'new_pin and old_pin required' });
   try{
-    const updated = await backendFetch(`/users/${encodeURIComponent(username)}`, { method: 'PATCH', body: JSON.stringify({ pin: Number(new_pin) }) });
+    // verify old_pin matches the currently authenticated user
+    const userByOldPin = await backendFetch(`/users/pin/${encodeURIComponent(old_pin)}`);
+    if(!userByOldPin || userByOldPin.username !== username){
+      return res.status(401).json({ error: 'Old PIN is incorrect' });
+    }
+    // proceed to update
+    const updated = await backendFetch(`/users/${encodeURIComponent(username)}`, { method: 'PATCH', body: JSON.stringify({ pin: String(new_pin) }) });
     return res.json(updated);
   }catch(err){
     if(err.status) return res.status(err.status).json(err.body || { error: 'backend' });

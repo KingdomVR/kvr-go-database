@@ -19,7 +19,7 @@ loginForm.onsubmit = async (ev)=>{
   ev.preventDefault();
   const fd = new FormData(loginForm);
   const username = fd.get('username');
-  const pin = Number(fd.get('pin'));
+  const pin = fd.get('pin');
   try{
     await postJSON('/api/login', { username, pin });
     await loadMe();
@@ -81,10 +81,11 @@ changePinModalForm.onsubmit = async (ev)=>{
   const fd = new FormData(ev.target);
   const new_pin = fd.get('new_pin');
   const confirm_pin = fd.get('confirm_pin');
+  const old_pin = fd.get('old_pin');
   if(!new_pin || !confirm_pin){ alert('Please provide PIN in both fields'); return; }
   if(new_pin !== confirm_pin){ alert('PINs do not match'); return; }
   try{
-    await postJSON('/api/change-pin', { new_pin: Number(new_pin) });
+    await postJSON('/api/change-pin', { new_pin: new_pin, old_pin: old_pin });
     alert('PIN changed');
     closeModal();
     await loadMe();
